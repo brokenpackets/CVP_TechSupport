@@ -4,9 +4,9 @@ import ssl
 import jsonrpclib
 
 ### User variables
-## Don't run 'show tech-support', it'll time out.
+## show-tech is a best-effort case, it can exceed the 120s HTTP_TIMEOUT var...Don't use on an internet-scale device. If you have problems running this, try removing 'show tech-support' from commandList.
 configletPrefix = 'techspt_'
-commandList = ['show ip bgp summary', 'show ip arp', 'show bgp evpn summary', 'show mac address-table']
+commandList = ['show ip bgp summary', 'show ip arp', 'show bgp evpn summary', 'show mac address-table', 'show tech-support']
 overwrite_configlets = True # Set to False if you want to protect configlets from overwrite.
 
 # Ignore untrusted certificate for eAPI call.
@@ -24,6 +24,7 @@ passwd = CVPGlobalVariables.getValue(GlobalVariableNames.CVP_PASSWORD)
 url = "https://%s:%s@%s/command-api" % (user, passwd, device_ip)
 ss = jsonrpclib.Server(url)
 
+HTTP_TIMEOUT = 120
 
 def check_configlet_exists(configlet_name):
     client = RestClient(cvpserver+rest_get_configlet_by_name+configlet_name,'GET')
@@ -67,9 +68,7 @@ def add_configlet(configlet_data,configlet_name):
       if 'errorCode' in output:
         if output['errorCode'] == '132518':
           if overwrite_configlets:
-            print 'Configlet already exists. This is odd...'
-        else:
-          print 'Unknown Error.'
+            print 'error 132518'
         if not overwrite_configlets:
             print 'Failure - configlet overwriting disabled.'
       print 'Configlet Added.'
@@ -79,6 +78,7 @@ def main():
     hostname = device.runCmds(['show hostname'],)[0]['response']['hostname']
     for command in commandList:
         tempconfiglet.append('============'+command+'============')
+        # Note: TXT Format not supported til 2019.1.0+ for Device() library.
         try:
             output = ss.runCmds(1,['enable',command],'text')[1]['output']
         except:
